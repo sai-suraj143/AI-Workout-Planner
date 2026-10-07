@@ -1,0 +1,206 @@
+/* ==========================================================================
+   Tailwind CSS v4 — CSS-first configuration.
+
+   The previous file used v3 directives (`@tailwind base/components/utilities`).
+   Those at-rules do not exist in v4 and were silently dropped, so no preflight
+   and (almost) no utilities were emitted -> completely unstyled pages.
+
+   v4 is configured here in CSS: `@import "tailwindcss"` + `@source` + `@theme`.
+   ========================================================================== */
+
+@import "tailwindcss";
+
+/* Tailwind v4 auto-detects sources relative to this CSS file (client/src).
+   index.html lives outside that folder, so declare it explicitly. */
+@source "../index.html";
+
+@theme {
+  /* Typography — system stack, no network font request required. */
+  --font-sans:
+    "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial,
+    ui-sans-serif, sans-serif;
+
+  /* Brand palette (indigo) -> bg-brand-600, text-brand-700, ring-brand-500, ... */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+  --color-brand-950: #1e1b4b;
+
+  /* App surfaces */
+  --color-canvas: #f6f7fb;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-slate-900 antialiased;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Design system components.
+
+   NOTE: in v4 `@apply` only accepts real utilities, so these rules never
+   `@apply` one another — each class is self-contained and composed in markup.
+   -------------------------------------------------------------------------- */
+@layer components {
+  /* ------------------------------------------------------------- Surfaces */
+  .af-card {
+    @apply w-full rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60;
+  }
+
+  .af-panel {
+    @apply rounded-xl border border-slate-200 bg-white p-6 shadow-sm;
+  }
+
+  /* ------------------------------------------------------------ Auth pages */
+  .af-auth-bg {
+    @apply relative flex min-h-screen w-full items-center justify-center
+           overflow-hidden bg-canvas px-4 py-10 sm:px-6;
+  }
+
+  .af-auth-card {
+    @apply w-full max-w-md rounded-2xl border border-slate-200 bg-white
+           p-6 shadow-xl shadow-slate-200/60 sm:p-8;
+  }
+
+  .af-brand-mark {
+    @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl
+           bg-brand-600 text-white shadow-lg shadow-brand-600/30;
+  }
+
+  /* Decorative, non-interactive backdrop wash. */
+  .af-auth-bg::before {
+    content: "";
+    @apply pointer-events-none absolute inset-0 -z-10;
+    background:
+      radial-gradient(
+        55rem 34rem at 50% -12%,
+        color-mix(in oklab, var(--color-brand-200) 55%, transparent),
+        transparent 62%
+      ),
+      radial-gradient(
+        38rem 28rem at 105% 105%,
+        color-mix(in oklab, var(--color-brand-100) 65%, transparent),
+        transparent 65%
+      );
+  }
+
+  /* ---------------------------------------------------------------- Fields */
+  .af-label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+
+  .af-input {
+    @apply block w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5
+           text-[15px] text-slate-900 shadow-sm transition
+           placeholder-slate-400
+           focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 focus:outline-none
+           disabled:cursor-not-allowed disabled:bg-slate-50;
+  }
+
+  /* Password inputs reserve room for the show/hide toggle. */
+  .af-input-has-toggle {
+    @apply pr-11;
+  }
+
+  .af-input-error {
+    @apply border-red-400 focus:border-red-500 focus:ring-red-500/15;
+  }
+
+  .af-toggle {
+    @apply absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400
+           transition-colors hover:text-slate-600 focus:outline-none;
+  }
+
+  .af-hint {
+    @apply mt-1.5 text-xs text-slate-500;
+  }
+
+  .af-field-error {
+    @apply mt-1.5 flex items-start gap-1.5 text-xs font-medium text-red-600;
+  }
+
+  /* --------------------------------------------------------------- Buttons */
+  .af-btn-primary {
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-xl
+           bg-brand-600 px-4 py-3 text-sm font-semibold text-white
+           shadow-lg shadow-brand-600/25 transition
+           hover:bg-brand-700 active:bg-brand-800
+           focus-visible:ring-4 focus-visible:ring-brand-500/30 focus-visible:outline-none
+           disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .af-btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border
+           border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold
+           text-slate-700 transition hover:bg-slate-50 active:bg-slate-100
+           focus-visible:ring-4 focus-visible:ring-slate-300/40 focus-visible:outline-none
+           disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  /* ------------------------------------------------------------------ Links */
+  .af-link {
+    @apply font-semibold text-brand-600 underline-offset-4 transition-colors
+           hover:text-brand-700 hover:underline
+           focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none;
+  }
+
+  /* ----------------------------------------------------------------- Alerts */
+  .af-alert-error {
+    @apply flex items-start gap-2.5 rounded-xl border border-red-200
+           bg-red-50 px-3.5 py-3 text-sm font-medium text-red-700;
+  }
+
+  /* --------------------------------------------------------------- Badges */
+  .af-badge {
+    @apply inline-flex items-center rounded-full bg-brand-50 px-2.5 py-1
+           text-xs font-semibold text-brand-700;
+  }
+
+  /* Full-height shell used by AuthLayout around authenticated pages. */
+  .af-app-shell {
+    @apply flex min-h-screen flex-col bg-canvas;
+  }
+
+  .af-icon-button {
+    @apply rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100
+           hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-brand-500/40
+           focus-visible:outline-none;
+  }
+
+  .af-nav-link {
+    @apply rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-colors
+           hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2
+           focus-visible:ring-brand-500/40 focus-visible:outline-none;
+  }
+
+  .af-logout-button {
+    @apply rounded-lg bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-600
+           transition-colors hover:bg-red-100 focus-visible:ring-2
+           focus-visible:ring-red-500/40 focus-visible:outline-none;
+  }
+
+  .af-avatar {
+    @apply flex h-8 w-8 items-center justify-center rounded-full bg-brand-100
+           text-sm font-semibold text-brand-700;
+  }
+
+  .af-sidebar {
+    @apply hidden w-64 shrink-0 border-r border-slate-200 bg-white md:block;
+  }
+}
