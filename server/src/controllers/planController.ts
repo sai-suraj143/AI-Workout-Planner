@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { generateAdaptivePlan as createAdaptivePlan } from './adaptationController';
 import { PlanServiceError, workoutPlanService } from '../services/workoutPlan.service';
 
 /**
@@ -29,6 +30,10 @@ export const generatePlan = async (req: Request, res: Response, next: NextFuncti
     }
     return next(error);
   }
+};
+
+export const generateAdaptivePlan = async (req: Request, res: Response, next: NextFunction) => {
+  return createAdaptivePlan(req, res, next);
 };
 
 export const getPlans = async (req: Request, res: Response, next: NextFunction) => {

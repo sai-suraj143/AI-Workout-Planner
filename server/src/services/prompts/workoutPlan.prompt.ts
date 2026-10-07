@@ -9,6 +9,7 @@ import type { AvailableDay, ExperienceLevel, FitnessGoal } from '../../models/Fi
  */
 
 export const PROMPT_VERSION = 'v1';
+export const ADAPTIVE_PROMPT_VERSION = 'adaptive-v1';
 
 /**
  * Structural view of the profile. `IFitnessProfile` satisfies it, and so does a
@@ -236,6 +237,60 @@ export const buildWorkoutPlanPrompt = (
         'Return the complete corrected JSON object only, with all of these problems fixed. No commentary.',
     );
   }
+
+  return parts.join('\n\n');
+};
+
+export const buildAdaptiveWorkoutPlanPrompt = (
+  profile: PromptProfile,
+  adaptiveContext: {
+    decision: string;
+    adherence: string;
+    trend: string;
+    reasons: string[];
+    performance: {
+      recentWorkoutCount: number;
+      completionRate: number;
+      exerciseCompletionRate: number;
+      plannedMinutes: number;
+      actualMinutes: number;
+      averagePlannedMinutes: number;
+      averageActualMinutes: number;
+      trend: string;
+    };
+  },
+): string => {
+  const parts: string[] = [];
+
+  parts.push(
+    'You are AdaptiveFit, a careful adaptive fitness planner. Deterministic performance analysis has already been calculated and is authoritative. Follow the decision below when generating the next plan.',
+  );
+  parts.push(`ADAPTIVE DECISION: ${adaptiveContext.decision}`);
+  parts.push(`ADHERENCE: ${adaptiveContext.adherence}`);
+  parts.push(`TREND: ${adaptiveContext.trend}`);
+  parts.push('REASONS:');
+  parts.push(adaptiveContext.reasons.join('\n'));
+  parts.push('PERFORMANCE METRICS:');
+  parts.push(`recentWorkoutCount: ${adaptiveContext.performance.recentWorkoutCount}`);
+  parts.push(`completionRate: ${adaptiveContext.performance.completionRate}%`);
+  parts.push(`exerciseCompletionRate: ${adaptiveContext.performance.exerciseCompletionRate}%`);
+  parts.push(`plannedMinutes: ${adaptiveContext.performance.plannedMinutes}`);
+  parts.push(`actualMinutes: ${adaptiveContext.performance.actualMinutes}`);
+  parts.push(`averagePlannedMinutes: ${adaptiveContext.performance.averagePlannedMinutes}`);
+  parts.push(`averageActualMinutes: ${adaptiveContext.performance.averageActualMinutes}`);
+  parts.push(SAFETY_RULES);
+  parts.push('ADAPTIVE RULES — always apply:');
+  parts.push('1. The deterministic adaptation decision is the governing instruction for this week.');
+  parts.push('2. Preserve all user constraints from the profile exactly: availableDays, equipment, excludedExercises, sessionDuration, trainingLocation, sport-specific rules and notes.');
+  parts.push('3. If the adaptation is REDUCE or MODIFY, keep the plan more conservative, not more aggressive.');
+  parts.push('4. Do not invent equipment, training days, or exercises.');
+  parts.push('5. Use only the user-selected available equipment and never include excluded exercises.');
+  parts.push('6. Do not exceed the session duration unnecessarily.');
+  parts.push('7. Produce only one valid JSON object matching the expected plan format.');
+  parts.push('8. Do not offer medical diagnosis or medical advice.');
+  parts.push('9. Do not create unsafe or extreme exercise challenges.');
+  parts.push(buildProfileDataBlock(profile));
+  parts.push(OUTPUT_SPEC.replace('{{goal}}', profile.goal).replace('{{experienceLevel}}', profile.experienceLevel));
 
   return parts.join('\n\n');
 };

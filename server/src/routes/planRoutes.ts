@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { generatePlan, getPlans, getPlanById, deletePlan } from '../controllers/planController';
+import { generateAdaptivePlan, generatePlan, getPlans, getPlanById, deletePlan } from '../controllers/planController';
 import { requireAuth } from '../middleware/authMiddleware';
 import rateLimit from 'express-rate-limit';
 
@@ -26,6 +26,9 @@ const generatePlanLimiter = rateLimit({
 
 // Generate a new workout plan
 router.post('/generate', generatePlanLimiter, generatePlan);
+
+// Generate an adaptive workout plan for the current user
+router.post('/generate-adaptive', generatePlanLimiter, generateAdaptivePlan);
 
 // Get all workout plans for the current user
 router.get('/', getPlans);

@@ -1,9 +1,12 @@
 import { Types } from 'mongoose';
 import { WorkoutPlan, IWorkoutPlan } from '../models/WorkoutPlan';
+import { WorkoutLog } from '../models/WorkoutLog';
 import { ProfileService } from './profileService';
 import { validateAiWorkoutPlan } from '../validators/workoutPlanValidators';
 import { normalizeWorkoutPlan, NormalizedWorkoutPlan } from './planNormalizer';
 import {
+  ADAPTIVE_PROMPT_VERSION,
+  buildAdaptiveWorkoutPlanPrompt,
   buildWorkoutPlanPrompt,
   isPromptProfile,
   PROMPT_VERSION,
@@ -14,6 +17,12 @@ import {
   GeminiServiceError,
   geminiService,
 } from './gemini.service';
+import {
+  buildAdaptivePlanContext,
+  evaluateAdaptationDecision,
+  type AdaptivePlanContext,
+  type AdaptationOutcome,
+} from './adaptation';
 
 /**
  * Workout plan business logic. Controllers stay thin; the prompt and the Gemini
@@ -74,6 +83,16 @@ const toPlanServiceError = (error: unknown): PlanServiceError => {
 export class WorkoutPlanService {
   constructor(private readonly generate: PlanGenerator = (prompt) => geminiService.generateJson(prompt)) {}
 
+  private getAdaptiveGenerationKey(userId: string): string {
+    const now = new Date();
+    const iso = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const day = iso.getUTCDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const startOfWeek = new Date(iso);
+    startOfWeek.setUTCDate(iso.getUTCDate() + mondayOffset);
+    return `${userId}:${startOfWeek.toISOString().slice(0, 10)}:${ADAPTIVE_PROMPT_VERSION}`;
+  }
+
   /** Full Phase 2 flow for the authenticated user. */
   async generateForUser(userId: string): Promise<IWorkoutPlan> {
     if (inFlightGenerations.has(userId)) {
@@ -125,6 +144,126 @@ export class WorkoutPlanService {
       throw toPlanServiceError(error);
     } finally {
       inFlightGenerations.delete(userId);
+    }
+  }
+
+  async generateAdaptiveForUser(userId: string): Promise<{ plan: IWorkoutPlan; adaptation: AdaptationOutcome }> {
+    const generationGuard = `adaptive:${userId}`;
+    if (inFlightGenerations.has(generationGuard)) {
+      throw new PlanServiceError(
+        409,
+        'An adaptive plan is already being generated. Please wait for it to finish.',
+        'generation_in_progress',
+      );
+    }
+    inFlightGenerations.add(generationGuard);
+    const startedAt = Date.now();
+
+    try {
+      const profile = await ProfileService.getProfileByUserId(userId);
+      if (!profile) {
+        throw new PlanServiceError(
+          400,
+          'Complete your fitness profile before generating an adaptive workout plan.',
+          'profile_missing',
+        );
+      }
+
+      const promptProfile: PromptProfile = {
+        goal: profile.goal,
+        experienceLevel: profile.experienceLevel,
+        trainingLocation: profile.trainingLocation,
+        equipment: [...profile.equipment],
+        availableDays: [...profile.availableDays],
+        sessionDuration: profile.sessionDuration,
+        preferredActivities: [...profile.preferredActivities],
+        excludedExercises: [...profile.excludedExercises],
+        sport: profile.sport,
+        sportName: profile.sportName,
+        additionalNotes: profile.additionalNotes,
+      };
+
+      const recentLogs = await WorkoutLog.find({ userId: new Types.ObjectId(userId) })
+        .sort({ workoutDate: -1 })
+        .lean()
+        .exec();
+
+      const normalizedLogs = recentLogs.map((log) => ({
+        userId: String(log.userId),
+        workoutDate: log.workoutDate,
+        status: String(log.status) as 'in_progress' | 'completed' | 'abandoned',
+        plannedDuration: Number(log.plannedDuration ?? 0),
+        actualDuration: typeof log.actualDuration === 'number' ? log.actualDuration : 0,
+        dayName: log.dayName,
+        focus: log.focus,
+        exercises: (log.exercises ?? []).map((exercise) => ({
+          exerciseName: exercise.exerciseName,
+          completed: exercise.completed,
+          skipped: exercise.skipped,
+          actualDuration: exercise.actualDuration,
+          plannedDuration: exercise.plannedDuration,
+        })),
+      }));
+
+      const adaptation = evaluateAdaptationDecision(normalizedLogs, {
+        goal: profile.goal,
+        experienceLevel: profile.experienceLevel,
+        trainingLocation: profile.trainingLocation,
+        equipment: [...profile.equipment],
+        availableDays: [...profile.availableDays],
+        sessionDuration: profile.sessionDuration,
+        preferredActivities: [...profile.preferredActivities],
+        excludedExercises: [...profile.excludedExercises],
+        sport: profile.sport,
+        sportName: profile.sportName,
+        additionalNotes: profile.additionalNotes,
+      });
+
+      const adaptiveContext = buildAdaptivePlanContext(
+        {
+          goal: profile.goal,
+          experienceLevel: profile.experienceLevel,
+          trainingLocation: profile.trainingLocation,
+          equipment: [...profile.equipment],
+          availableDays: [...profile.availableDays],
+          sessionDuration: profile.sessionDuration,
+          preferredActivities: [...profile.preferredActivities],
+          excludedExercises: [...profile.excludedExercises],
+          sport: profile.sport,
+          sportName: profile.sportName,
+          additionalNotes: profile.additionalNotes,
+        },
+        normalizedLogs,
+        adaptation,
+      );
+
+      const generationKey = this.getAdaptiveGenerationKey(userId);
+      const existingAdaptivePlan = await WorkoutPlan.findOne({
+        userId: new Types.ObjectId(userId),
+        'aiMetadata.generationType': 'adaptive_plan',
+        'aiMetadata.generationKey': generationKey,
+      }).lean().exec();
+
+      if (existingAdaptivePlan) {
+        throw new PlanServiceError(
+          409,
+          'An adaptive plan for this week already exists. Use the newest generated plan or wait for the next adaptation window.',
+          'duplicate_generation',
+        );
+      }
+
+      const { normalized, model } = await this.generateValidatedAdaptivePlan(promptProfile, adaptiveContext, adaptation);
+      const plan = await this.save(userId, normalized, model, Date.now() - startedAt, {
+        generationType: 'adaptive_plan',
+        promptVersion: ADAPTIVE_PROMPT_VERSION,
+        generationKey,
+      });
+
+      return { plan, adaptation };
+    } catch (error) {
+      throw toPlanServiceError(error);
+    } finally {
+      inFlightGenerations.delete(generationGuard);
     }
   }
 
@@ -181,12 +320,76 @@ export class WorkoutPlanService {
     return { normalized, model };
   }
 
+  private async generateValidatedAdaptivePlan(
+    promptProfile: PromptProfile,
+    adaptiveContext: AdaptivePlanContext,
+    adaptation: AdaptationOutcome,
+  ): Promise<{ normalized: NormalizedWorkoutPlan; model: string }> {
+    let validationIssues: string[] | undefined;
+    let normalized: NormalizedWorkoutPlan | undefined;
+    let model = '';
+
+    for (let attempt = 1; attempt <= MAX_AI_ATTEMPTS; attempt += 1) {
+      const prompt = buildAdaptiveWorkoutPlanPrompt(promptProfile, {
+        decision: adaptation.decision,
+        adherence: adaptation.adherence,
+        trend: adaptation.trend,
+        reasons: adaptation.reasons,
+        performance: adaptiveContext.performance,
+      });
+
+      let result: GeminiJsonResult;
+      try {
+        result = await this.generate(prompt);
+      } catch (error) {
+        if (error instanceof GeminiServiceError && error.kind === 'malformed_json') {
+          console.warn(`[plans] adaptive attempt ${attempt}/${MAX_AI_ATTEMPTS}: reply was not parseable JSON`);
+          validationIssues = [
+            'The reply was not a single valid JSON object. Return only the JSON object — no markdown fences and no surrounding text.',
+          ];
+          continue;
+        }
+        throw error;
+      }
+
+      model = result.model;
+      const validated = validateAiWorkoutPlan(result.data);
+      if (validated.ok) {
+        normalized = normalizeWorkoutPlan(validated.value, {
+          goal: promptProfile.goal,
+          experienceLevel: promptProfile.experienceLevel,
+        });
+        break;
+      }
+
+      console.warn(
+        `[plans] adaptive attempt ${attempt}/${MAX_AI_ATTEMPTS} failed validation: ${validated.issues.join(' | ')}`,
+      );
+      validationIssues = validated.issues;
+    }
+
+    if (!normalized) {
+      throw new PlanServiceError(
+        502,
+        'The generated adaptive plan did not match the expected format. Please try again.',
+        'ai_invalid',
+      );
+    }
+
+    return { normalized, model };
+  }
+
   /** Zod output never reaches Mongo before this point. */
   private async save(
     userId: string,
     plan: NormalizedWorkoutPlan,
     model: string,
     generationDurationMs: number,
+    metadata: {
+      generationType?: 'manual_plan' | 'adaptive_plan';
+      promptVersion?: string;
+      generationKey?: string;
+    } = {},
   ): Promise<IWorkoutPlan> {
     try {
       const document = new WorkoutPlan({
@@ -195,9 +398,11 @@ export class WorkoutPlanService {
         status: 'generated',
         aiMetadata: {
           model,
-          promptVersion: PROMPT_VERSION,
+          promptVersion: metadata.promptVersion ?? PROMPT_VERSION,
           generatedAt: new Date(),
           generationDurationMs,
+          generationType: metadata.generationType ?? 'manual_plan',
+          generationKey: metadata.generationKey,
         },
       });
       return await document.save();

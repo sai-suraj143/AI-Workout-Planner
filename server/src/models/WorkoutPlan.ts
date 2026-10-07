@@ -86,6 +86,8 @@ export interface IAIMetadata {
   promptVersion: string;
   generatedAt: Date;
   generationDurationMs?: number;
+  generationType?: 'manual_plan' | 'adaptive_plan';
+  generationKey?: string;
 }
 
 export interface IWorkoutPlan extends Document {
@@ -151,7 +153,9 @@ const WorkoutPlanSchema: Schema<IWorkoutPlan> = new Schema(
       model: { type: String, required: true },
       promptVersion: { type: String, required: true },
       generatedAt: { type: Date, required: true, default: Date.now },
-      generationDurationMs: { type: Number }
+      generationDurationMs: { type: Number },
+      generationType: { type: String, enum: ['manual_plan', 'adaptive_plan'], default: 'manual_plan' },
+      generationKey: { type: String }
     }
   },
   { timestamps: true }

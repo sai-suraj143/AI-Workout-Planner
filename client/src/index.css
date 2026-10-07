@@ -189,12 +189,6 @@
            focus-visible:ring-brand-500/40 focus-visible:outline-none;
   }
 
-  .af-logout-button {
-    @apply rounded-lg bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-600
-           transition-colors hover:bg-red-100 focus-visible:ring-2
-           focus-visible:ring-red-500/40 focus-visible:outline-none;
-  }
-
   .af-avatar {
     @apply flex h-8 w-8 items-center justify-center rounded-full bg-brand-100
            text-sm font-semibold text-brand-700;

@@ -26,6 +26,8 @@ export interface PlanAIMetadata {
   /** ISO timestamp. */
   generatedAt: string;
   generationDurationMs?: number;
+  generationType?: 'manual_plan' | 'adaptive_plan';
+  generationKey?: string;
 }
 
 export interface WorkoutPlan {

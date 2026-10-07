@@ -8,6 +8,7 @@ import connectDB from './config/database';
 import authRoutes from './routes/authRoutes';
 import profileRoutes from './routes/profileRoutes';
 import planRoutes from './routes/planRoutes';
+import adaptationRoutes from './routes/adaptationRoutes';
 import workoutLogRoutes from './routes/workoutLogRoutes';
 import analyticsRoutes from './routes/analyticsRoutes';
 
@@ -43,6 +44,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 // Plan routes
 app.use('/api/plans', planRoutes);
+// Adaptation routes
+app.use('/api/adaptation', adaptationRoutes);
 // Workout log routes
 app.use('/api/workouts', workoutLogRoutes);
 // Analytics routes

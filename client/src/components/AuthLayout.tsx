@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../services/authService';
 import { Link } from 'react-router-dom';
-import { BoltIcon, SpinnerIcon } from './icons';
+import { BoltIcon, LogOutIcon, SpinnerIcon } from './icons';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -87,8 +87,14 @@ const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <span className="af-avatar" aria-hidden="true">
                 {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </span>
-              <button onClick={handleLogout} className="af-logout-button">
-                Logout
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="af-icon-button"
+                aria-label="Log out"
+                title="Log out"
+              >
+                <LogOutIcon />
               </button>
             </div>
           </div>

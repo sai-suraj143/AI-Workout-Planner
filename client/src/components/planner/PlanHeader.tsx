@@ -19,9 +19,11 @@ export const PlanHeader = ({ plan }: PlanHeaderProps) => {
     { label: 'Generated', value: formatDate(generatedAt) },
   ];
 
+  const isAdaptive = plan.aiMetadata?.generationType === 'adaptive_plan';
+
   return (
     <header className="af-panel">
-      <span className="af-badge">AI generated plan</span>
+      <span className="af-badge">{isAdaptive ? 'Adaptive AI plan' : 'AI generated plan'}</span>
       <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
         {plan.title}
       </h1>

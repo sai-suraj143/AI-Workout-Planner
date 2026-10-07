@@ -14,6 +14,14 @@ export const BoltIcon = ({ className = 'h-6 w-6' }: IconProps) => (
   </svg>
 );
 
+export const LogOutIcon = ({ className = 'h-5 w-5' }: IconProps) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M10 17l5-5-5-5M15 12H3" />
+    <path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" />
+  </svg>
+);
+
 export const MailIcon = ({ className = 'h-5 w-5' }: IconProps) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
