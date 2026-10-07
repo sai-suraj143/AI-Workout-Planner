@@ -4,6 +4,17 @@ import { AuthService } from '../services/authService';
 import { z, ZodError } from 'zod';
 import { User } from '../models/User';
 
+const getTokenCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  } as const;
+};
+
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Validate input
@@ -17,12 +28,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     const token = AuthService.generateToken(user._id.toString());
 
     // Set HTTP-only cookie
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // true in production
-      sameSite: 'lax', // or 'strict' depending on your needs
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+    res.cookie('token', token, getTokenCookieOptions());
 
     // Return safe user data
     res.status(201).json({
@@ -54,12 +60,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const { user, token } = await AuthService.login(email, password);
 
     // Set HTTP-only cookie
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+    res.cookie('token', token, getTokenCookieOptions());
 
     // Return safe user data
     res.json({
@@ -84,7 +85,7 @@ export const logout = async (_req: Request, res: Response) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   });
   res.json({ success: true, message: 'Logged out' });
 };

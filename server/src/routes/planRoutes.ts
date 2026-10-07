@@ -1,5 +1,13 @@
 import { Router } from 'express';
-import { generateAdaptivePlan, generatePlan, getPlans, getPlanById, deletePlan } from '../controllers/planController';
+import {
+  generateAdaptivePlan,
+  generatePlan,
+  getPlans,
+  getPlanById,
+  deletePlan,
+  substituteExercise,
+  regenerateDay,
+} from '../controllers/planController';
 import { requireAuth } from '../middleware/authMiddleware';
 import rateLimit from 'express-rate-limit';
 
@@ -29,6 +37,12 @@ router.post('/generate', generatePlanLimiter, generatePlan);
 
 // Generate an adaptive workout plan for the current user
 router.post('/generate-adaptive', generatePlanLimiter, generateAdaptivePlan);
+
+// Replace a single exercise in a single day, keeping the rest of the plan intact.
+router.post('/:planId/days/:dayIndex/exercises/:exerciseIndex/substitute', substituteExercise);
+
+// Regenerate a single target day while preserving all other days.
+router.post('/:planId/days/:dayIndex/regenerate', regenerateDay);
 
 // Get all workout plans for the current user
 router.get('/', getPlans);

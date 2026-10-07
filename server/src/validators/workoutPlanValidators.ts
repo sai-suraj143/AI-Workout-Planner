@@ -121,9 +121,29 @@ export const aiWorkoutPlanSchema = z
   });
 
 // Type inference exports
+export const exerciseSubstitutionRequestSchema = z.object({
+  reason: z.enum(['equipment_unavailable', 'dont_prefer', 'too_difficult', 'too_easy', 'different_variation', 'other']),
+  notes: z.string().trim().max(300, 'Notes must be 300 characters or fewer').optional(),
+});
+
+export const dayRegenerationRequestSchema = z.object({
+  reason: z.string().trim().max(200, 'Reason must be 200 characters or fewer').optional(),
+  notes: z.string().trim().max(300, 'Notes must be 300 characters or fewer').optional(),
+});
+
+export const exerciseReplacementResultSchema = z.object({
+  exercise: exerciseSchema,
+});
+
+export const dayRegenerationResultSchema = z.object({
+  day: workoutDaySchema,
+});
+
 export type AIWorkoutPlanInput = z.infer<typeof aiWorkoutPlanSchema>;
 export type ExerciseInput = z.infer<typeof exerciseSchema>;
 export type WorkoutDayInput = z.infer<typeof workoutDaySchema>;
+export type ExerciseSubstitutionRequestInput = z.infer<typeof exerciseSubstitutionRequestSchema>;
+export type DayRegenerationRequestInput = z.infer<typeof dayRegenerationRequestSchema>;
 
 /* ------------------------------------------------------------- validation */
 

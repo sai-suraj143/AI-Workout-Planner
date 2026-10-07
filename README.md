@@ -1,75 +1,134 @@
 # AI Workout Planner (AdaptiveFit)
 
-Full-stack app: React + Vite client, Express + Mongoose server, AI workout-plan generation (Gemini).
+Full-stack app: React + Vite client, Express + Mongoose server, AI workout-plan generation with Gemini.
+
+## Architecture
+
+- Frontend: Vercel
+- Backend API: Render
+- Database: MongoDB Atlas
+- AI: Gemini API
 
 ## Prerequisites
 
-- Node.js 20+ (verified on Node 22)
-- A MongoDB database (local or Atlas connection string)
+- Node.js 20+
+- MongoDB Atlas connection string or a running MongoDB instance
+- Gemini API key
+- Vercel app URL for the frontend
 
-## Configuration
+## Environment variables
 
-`server/.env` is required (copy from `server/.env.example`):
+Create the required local environment files before running the app:
 
+### Frontend
+
+`client/.env.example`
+
+```env
+VITE_API_URL=http://localhost:5000/api
 ```
+
+### Backend
+
+`server/.env.example`
+
+```env
+NODE_ENV=development
 PORT=5000
-MONGODB_URI=<your mongodb connection string>
-JWT_SECRET=<any long random string>
-GEMINI_API_KEY=<gemini api key>          # only needed for plan generation
+MONGODB_URI=
+JWT_SECRET=
+GEMINI_API_KEY=
 GEMINI_MODEL=gemini-3.8-flash
 CLIENT_URL=http://localhost:5173
 ```
 
-`CLIENT_URL` must match the exact origin you open in the browser — CORS is locked to it.
+Do not commit real secrets. Keep `.env` files local and ignore them in git.
 
-The client needs no `.env`; without `VITE_API_URL` it calls `http://localhost:5000/api`.
+## Local development
 
-## Running the project
+Two terminals must be running for the app to work.
 
-Two terminals. **Both must be running** — the login/register error
-"An unexpected error occurred. Please try again." means the API process is not up.
-
-**Terminal 1 — API server (port 5000):**
+### Terminal 1 — API server
 
 ```bash
 cd server
-npm install        # first time only
-npm run dev        # tsc -> dist, then node dist/server.js
-```
-
-**Terminal 2 — web app (port 5173):**
-
-```bash
-cd client
-npm install        # first time only
+npm install
+cp .env.example .env
+# fill in your local values
 npm run dev
 ```
 
-Open **http://localhost:5173** (use `localhost`, not `127.0.0.1` — CORS allows only
-`http://localhost:5173`).
+### Terminal 2 — frontend
 
-### Available server scripts
+```bash
+cd client
+npm install
+cp .env.example .env
+npm run dev
+```
 
-| Script | What it does |
-| --- | --- |
-| `npm run build` | Compile TypeScript to `dist/` |
-| `npm run dev` | Build, then run `dist/server.js` |
-| `npm start` | Run the already-built `dist/server.js` |
+Open `http://localhost:5173` in the browser.
 
-> Note: `ts-node-dev` (installed but unusable) crashes with this project's
-> TypeScript 7 — use `npm run dev` instead.
+## Production deployment notes
 
-## Verify it works
+### Frontend (Vercel)
+
+- Set the Vercel project to the `client` directory.
+- Set `VITE_API_URL` to the Render backend URL, for example:
+
+```env
+VITE_API_URL=https://YOUR-RENDER-SERVICE.onrender.com/api
+```
+
+- Add a SPA rewrite in Vercel for client-side routes such as `/planner`, `/history`, and `/workout/:id`.
+
+### Backend (Render)
+
+- Set the Render build command to `npm install && npm run build`
+- Set the start command to `npm start`
+- Configure the environment variables in Render:
+
+```env
+NODE_ENV=production
+PORT=10000
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.8-flash
+CLIENT_URL=https://YOUR-VERCEL-APP.vercel.app
+```
+
+### Database and AI
+
+- MongoDB Atlas should be used for the production database.
+- Gemini API is server-side only; never call it from the frontend.
+
+## Production verification
+
+```bash
+cd client && npm run build
+cd ../server && npm run build
+```
+
+The backend health endpoint should respond on:
 
 ```bash
 curl http://localhost:5000/api/health
-# {"success":true,"message":"AI Workout Planner API is running",...}
 ```
 
-## Scripts (client)
+## Scripts
+
+### Client
 
 ```bash
-npm run dev     # Vite dev server on 5173
-npm run build   # tsc -b && vite build
-npm run lint    # oxlint
+npm run dev
+npm run build
+npm run lint
+```
+
+### Server
+
+```bash
+npm run build
+npm start
 ```

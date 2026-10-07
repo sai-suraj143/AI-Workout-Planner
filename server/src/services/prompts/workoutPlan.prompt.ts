@@ -10,6 +10,8 @@ import type { AvailableDay, ExperienceLevel, FitnessGoal } from '../../models/Fi
 
 export const PROMPT_VERSION = 'v1';
 export const ADAPTIVE_PROMPT_VERSION = 'adaptive-v1';
+export const EXERCISE_SUBSTITUTION_PROMPT_VERSION = 'exercise-substitution-v1';
+export const DAY_REGENERATION_PROMPT_VERSION = 'day-regeneration-v1';
 
 /**
  * Structural view of the profile. `IFitnessProfile` satisfies it, and so does a
@@ -292,6 +294,56 @@ export const buildAdaptiveWorkoutPlanPrompt = (
   parts.push(buildProfileDataBlock(profile));
   parts.push(OUTPUT_SPEC.replace('{{goal}}', profile.goal).replace('{{experienceLevel}}', profile.experienceLevel));
 
+  return parts.join('\n\n');
+};
+
+export const buildExerciseSubstitutionPrompt = (
+  profile: PromptProfile,
+  targetDay: { dayIndex: number; dayName: string; focus: string },
+  exercise: { name: string; category: string; muscleGroup?: string; equipment?: string; sets?: number; reps?: number; durationSeconds?: number; instructions: string; alternatives?: string[] },
+  reason: string,
+  notes?: string,
+): string => {
+  const parts: string[] = [];
+  parts.push('You are AdaptiveFit, a careful fitness planner. Replace one exercise with a single equivalent alternative that preserves the original day’s intent.');
+  parts.push('Return ONLY one JSON object: { "exercise": { ...exercise schema... } }. No markdown fences, no commentary.');
+  parts.push(buildProfileDataBlock(profile));
+  parts.push(`TARGET_DAY: ${JSON.stringify(targetDay, null, 2)}`);
+  parts.push(`ORIGINAL_EXERCISE: ${JSON.stringify(exercise, null, 2)}`);
+  parts.push(`REPLACEMENT_REASON: ${cleanLine(reason, 200)}`);
+  parts.push(`USER_NOTES: ${notes ? cleanNotes(notes) : 'none'}`);
+  parts.push('RULES:');
+  parts.push('1. Preserve the same general training purpose, movement pattern, and difficulty as the original exercise.');
+  parts.push('2. Keep the replacement within the user profile constraints and available equipment.');
+  parts.push('3. Do not select an exercise already present in the same day, and avoid redundant duplicates.');
+  parts.push('4. Use the same movement category when possible and keep the workout coherent with the target day focus.');
+  parts.push('5. If there is a valid alternative, return it as a normal exercise object with all required schema fields.');
+  parts.push('6. Do not add extra narrative fields outside the required JSON object.');
+  return parts.join('\n\n');
+};
+
+export const buildDayRegenerationPrompt = (
+  profile: PromptProfile,
+  targetDay: { dayIndex: number; dayName: string; focus: string; estimatedDuration: number; restDay: boolean; exercises: Array<Record<string, unknown>> },
+  planContext: { title: string; summary: string; goal: string; experienceLevel: string },
+  reason?: string,
+  notes?: string,
+): string => {
+  const parts: string[] = [];
+  parts.push('You are AdaptiveFit, a careful fitness planner. Regenerate only the target day while leaving every other day untouched.');
+  parts.push('Return ONLY one JSON object: { "day": { ...workoutDay schema... } }. No markdown fences, no commentary.');
+  parts.push(buildProfileDataBlock(profile));
+  parts.push(`PLAN_CONTEXT: ${JSON.stringify(planContext, null, 2)}`);
+  parts.push(`TARGET_DAY: ${JSON.stringify(targetDay, null, 2)}`);
+  parts.push(`REGENERATION_REASON: ${reason ? cleanLine(reason, 200) : 'none'}`);
+  parts.push(`USER_NOTES: ${notes ? cleanNotes(notes) : 'none'}`);
+  parts.push('RULES:');
+  parts.push('1. Replace only the target day, not the entire plan.');
+  parts.push('2. Preserve the target day’s training intent and keep it consistent with the user profile and weekly structure.');
+  parts.push('3. Keep all other days exactly as they are; do not rewrite the plan outside the selected day.');
+  parts.push('4. Keep exercises within available equipment and the user’s excluded exercises list.');
+  parts.push('5. Keep the target day duration reasonable for the user’s session window and day focus.');
+  parts.push('6. Return a complete replacement day object that matches the workoutDay schema exactly.');
   return parts.join('\n\n');
 };
 

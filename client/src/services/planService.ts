@@ -26,6 +26,29 @@ interface ErrorEnvelope {
   message?: unknown;
 }
 
+interface ExerciseReplacementPayload {
+  reason: 'equipment_unavailable' | 'dont_prefer' | 'too_difficult' | 'too_easy' | 'different_variation' | 'other';
+  notes?: string;
+}
+
+interface DayRegenerationPayload {
+  reason?: string;
+  notes?: string;
+}
+
+interface ExerciseReplacementResponse {
+  success: boolean;
+  day: WorkoutPlan['days'][number];
+  exercise: WorkoutPlan['days'][number]['exercises'][number];
+  plan: WorkoutPlan;
+}
+
+interface DayRegenerationResponse {
+  success: boolean;
+  day: WorkoutPlan['days'][number];
+  plan: WorkoutPlan;
+}
+
 /** Defensive: never hand components a non-array and let `plans.map` explode. */
 const asPlanArray = (plans: WorkoutPlan[]): WorkoutPlan[] => (Array.isArray(plans) ? plans : []);
 
@@ -46,6 +69,31 @@ export const generatePlanAPI = async (): Promise<WorkoutPlan> => {
 
 export const deletePlanAPI = async (planId: string): Promise<void> => {
   await apiClient.delete(`/plans/${planId}`);
+};
+
+export const substituteExerciseAPI = async (
+  planId: string,
+  dayIndex: number,
+  exerciseIndex: number,
+  payload: ExerciseReplacementPayload,
+): Promise<ExerciseReplacementResponse> => {
+  const response = await apiClient.post<ExerciseReplacementResponse>(
+    `/plans/${planId}/days/${dayIndex}/exercises/${exerciseIndex}/substitute`,
+    payload,
+  );
+  return response.data;
+};
+
+export const regenerateDayAPI = async (
+  planId: string,
+  dayIndex: number,
+  payload: DayRegenerationPayload = {},
+): Promise<DayRegenerationResponse> => {
+  const response = await apiClient.post<DayRegenerationResponse>(
+    `/plans/${planId}/days/${dayIndex}/regenerate`,
+    payload,
+  );
+  return response.data;
 };
 
 /**
@@ -111,6 +159,56 @@ export const useDeletePlan = () => {
     mutationFn: deletePlanAPI,
     onSuccess: (_data, planId) => {
       queryClient.removeQueries({ queryKey: ['plan', user?.id, planId] });
+      void queryClient.invalidateQueries({ queryKey: ['plans'] });
+    },
+  });
+};
+
+export const useSubstituteExercise = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      planId,
+      dayIndex,
+      exerciseIndex,
+      reason,
+      notes,
+    }: {
+      planId: string;
+      dayIndex: number;
+      exerciseIndex: number;
+      reason: ExerciseReplacementPayload['reason'];
+      notes?: string;
+    }) => substituteExerciseAPI(planId, dayIndex, exerciseIndex, { reason, notes }),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(['plan', user?.id, variables.planId], data.plan);
+      void queryClient.invalidateQueries({ queryKey: ['plan', user?.id, variables.planId] });
+      void queryClient.invalidateQueries({ queryKey: ['plans'] });
+    },
+  });
+};
+
+export const useRegenerateDay = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      planId,
+      dayIndex,
+      reason,
+      notes,
+    }: {
+      planId: string;
+      dayIndex: number;
+      reason?: string;
+      notes?: string;
+    }) => regenerateDayAPI(planId, dayIndex, { reason, notes }),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(['plan', user?.id, variables.planId], data.plan);
+      void queryClient.invalidateQueries({ queryKey: ['plan', user?.id, variables.planId] });
       void queryClient.invalidateQueries({ queryKey: ['plans'] });
     },
   });

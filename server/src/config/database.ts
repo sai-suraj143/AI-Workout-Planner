@@ -1,18 +1,22 @@
 import mongoose from 'mongoose';
 
 const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI as string);
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    throw new Error('MONGODB_URI is not configured. Set it before starting the server.');
+  }
 
+  try {
+    const conn = await mongoose.connect(mongoUri);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error: unknown) {
     // eslint-disable-next-line no-console
     if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`MongoDB connection failed: ${error.message}`);
     } else {
-      console.error(`Error: ${error}`);
+      console.error('MongoDB connection failed:', error);
     }
-    process.exit(1);
+    throw error;
   }
 };
 

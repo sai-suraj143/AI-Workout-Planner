@@ -2,9 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { WorkoutLog } from '../types/workoutLog';
 import { useAuth } from './authService';
 
+const apiBaseUrl = import.meta.env.VITE_API_URL;
+if (!apiBaseUrl) {
+  throw new Error('VITE_API_URL is not configured. Set it in the client environment before running the app.');
+}
+
 // API base URL — must match the axios base used by api/client.ts so auth calls
 // and workout calls always talk to the same backend.
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE = apiBaseUrl;
 
 /**
  * Start a workout session from a specific plan/day
