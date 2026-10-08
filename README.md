@@ -84,7 +84,7 @@ VITE_API_URL=https://YOUR-RENDER-SERVICE.onrender.com/api
 
 ### Backend (Render)
 
-- Set the Render build command to `npm install && npm run build`
+- Set the Render build command to `npm install --include=dev && npm run build`
 - Set the start command to `npm start`
 - Configure the environment variables in Render:
 
